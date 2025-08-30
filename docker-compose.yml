@@ -1,35 +1,16 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:15
     restart: always
-    shm_size: 128mb
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASS}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
     ports:
       - "5432:5432"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
 
   adminer:
     image: adminer
     restart: always
     ports:
-      - "8080:8080"
-
-  etl:
-    build: .
-    container_name: etl_sigos
-    depends_on:
-      - db
-    env_file:
-      - .env
-    volumes:
-      - ./downloads:/app/downloads
-      - ./logs:/app/logs
-    command: python main.py --report general --mode incremental
-    # ↑ pode trocar esse comando direto no compose ou na hora de rodar
-
-volumes:
-  postgres_data:
+      - 8080:8080
