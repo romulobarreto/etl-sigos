@@ -1,0 +1,12 @@
+# python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+
+# env
+.env
+
+# data
+downloads/
+logs/
