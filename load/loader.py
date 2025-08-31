@@ -41,7 +41,6 @@ def _dtype_map_for_table(tabela: str):
             "Data Afericao": Date(),
             "Data AR": Date(),
             "Data baixado": Date(),
-            "Hora": DateTime(),
             "Hora inicio servico": Time(),
             "Hora fim servico": Time(),
             "data_extracao": DateTime()

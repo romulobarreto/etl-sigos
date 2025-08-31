@@ -10,7 +10,12 @@ load_dotenv()
 
 USUARIO = os.getenv("SIGOS_USUARIO")
 SENHA = os.getenv("SIGOS_SENHA")
-DOWNLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "downloads")
+
+# ⚠️ IMPORTANTE:
+# Dentro do container selenium, o user padrão é "seluser"
+# E a pasta Downloads padrão é /home/seluser/Downloads
+DOWNLOAD_DIR = "/home/seluser/Downloads"
+
 HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"  # true por padrão
 
 
@@ -28,14 +33,17 @@ def esperar_elemento(driver, xpath, tipo="presenca", timeout=20):
 
 def abre_navegador():
     options = Options()
-    options.add_argument("--start-maximized")
-    options.add_experimental_option("prefs", {
+
+    prefs = {
         "download.default_directory": DOWNLOAD_DIR,
+        "download.prompt_for_download": False,
+        "download.directory_upgrade": True,
+        "safebrowsing.enabled": True,
+        "safebrowsing.disable_download_protection": True,
         "credentials_enable_service": False,
         "profile.password_manager_enabled": False
-    })
-
-    # Silencia os logs extras do Chrome
+    }
+    options.add_experimental_option("prefs", prefs)
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
     if HEADLESS:
@@ -45,13 +53,19 @@ def abre_navegador():
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
 
-    driver = webdriver.Chrome(options=options)
+    # Conectar no Chrome remoto do container selenium
+    driver = webdriver.Remote(
+        command_executor="http://selenium:4444/wd/hub",
+        options=options
+    )
+
     driver.get("https://apps.equatorialenergia.com.br/sigos/")
     return driver
 
 
 def logar_sigos():
     driver = abre_navegador()
+    driver.maximize_window()
     campo_login = esperar_elemento(driver, "/html/body/form/div/div/div[2]/div[3]/div/div[1]/input")
     campo_login.send_keys(USUARIO)
     campo_senha = esperar_elemento(driver, "/html/body/form/div/div/div[2]/div[3]/div/div[2]/input")

@@ -2,15 +2,49 @@ services:
   db:
     image: postgres:15
     restart: always
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
 
   adminer:
     image: adminer
     restart: always
     ports:
       - 8080:8080
+
+  selenium:
+    image: selenium/standalone-chrome:4.19.0
+    shm_size: 2gb
+    ports:
+      - "4444:4444"   # Selenium Hub
+      - "7900:7900"   # noVNC Web UI
+    volumes:
+      - selenium_downloads:/home/seluser/Downloads
+
+  etl:
+    build: .
+    depends_on:
+      - db
+      - selenium
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${DB_USER}
+      DB_PASS: ${DB_PASS}
+      DB_NAME: ${DB_NAME}
+      SIGOS_USUARIO: ${SIGOS_USUARIO}
+      SIGOS_SENHA: ${SIGOS_SENHA}
+      HEADLESS: ${HEADLESS}
+    volumes:
+      - selenium_downloads:/app/downloads
+      - etl_logs:/app/logs
+
+volumes:
+  pgdata:
+  selenium_downloads:
+  etl_logs:

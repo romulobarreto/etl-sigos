@@ -1,10 +1,20 @@
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
-from extraction.core.browser import esperar_elemento, logar_sigos, DOWNLOAD_DIR
+from extraction.core.browser import esperar_elemento, logar_sigos
 from extraction.core.utils import esperar_download_concluir
 from datetime import datetime, timedelta, date
 import time
 
+DOWNLOAD_DIR = "/app/downloads"
+
+def digitar_data_por_etapas(actions, data_str):
+    """Recebe 'dd/mm/yyyy' e digita em 3 etapas: dia, mês, ano"""
+    dia, mes, ano = data_str.split("/")
+    # digita devagar com pausa entre cada parte
+    actions.send_keys(mes).pause(0.5)
+    actions.send_keys(dia).pause(0.5)
+    actions.send_keys(ano).pause(0.5)
+    return actions
 
 def exportar_retorno(driver, data_inicio, data_final, primeira_vez=False):
     actions = ActionChains(driver)
@@ -20,46 +30,41 @@ def exportar_retorno(driver, data_inicio, data_final, primeira_vez=False):
         # Seleciona "Retorno"
         tipo_relatorio = esperar_elemento(driver, '//*[@id="tp_relatorio"]', tipo="clicavel")
         tipo_relatorio.click()
-        actions.send_keys(Keys.ARROW_DOWN * 3).pause(0.2)
-        actions.send_keys(Keys.ENTER).pause(0.2)
+        actions.send_keys(Keys.ARROW_DOWN * 3).pause(0.5)
+        actions.send_keys(Keys.ENTER).pause(0.5)
         actions.perform()
 
         # Seleciona o tipo do retorno
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.ARROW_DOWN * 3).pause(0.2)
+        actions.send_keys(Keys.TAB).pause(0.5)
+        actions.send_keys(Keys.ARROW_DOWN * 3).pause(0.5)
 
         # Seleciona "Por data do serviço"
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.ARROW_DOWN).pause(0.2)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.ENTER).pause(0.2)
+        actions.send_keys(Keys.TAB).pause(0.5)
+        actions.send_keys(Keys.ARROW_DOWN).pause(0.5)
+        actions.send_keys(Keys.TAB).pause(0.5)
         actions.perform()
 
         # Preenche as datas
-        actions.send_keys(data_inicio).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(data_final).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.ENTER).pause(0.2)
+        actions = digitar_data_por_etapas(actions, data_inicio)
+        actions.send_keys(Keys.TAB).pause(0.5)
+        actions = digitar_data_por_etapas(actions, data_final)
+        actions.send_keys(Keys.TAB).pause(0.5)
+        actions.send_keys(Keys.TAB).pause(0.5)
+        actions.send_keys(Keys.ENTER).pause(0.5)
         actions.perform()
 
     else:
         # Volta até campo de data de início
-        for _ in range(9):
-            actions.key_down(Keys.SHIFT).send_keys(Keys.TAB).key_up(Keys.SHIFT).pause(0.2)
+        campo_inicio = esperar_elemento(driver, '//*[@id="data_inicio"]', tipo="clicavel")
+        campo_inicio.click()
 
         # Reescreve as datas e exporta
-        actions.send_keys(data_inicio).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(data_final).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.TAB).pause(0.2)
-        actions.send_keys(Keys.ENTER).pause(0.2)
+        actions = digitar_data_por_etapas(actions, data_inicio)
+        actions.send_keys(Keys.TAB).pause(0.5)
+        actions = digitar_data_por_etapas(actions, data_final)
+        actions.send_keys(Keys.TAB).pause(0.5)
+        actions.send_keys(Keys.TAB).pause(0.5)
+        actions.send_keys(Keys.ENTER).pause(0.5)
         actions.perform()
 
     print(f"Exportando relatório de retorno: {data_inicio} até {data_final}")

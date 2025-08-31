@@ -3,6 +3,9 @@ import time
 import os
 
 def esperar_download_concluir(pasta, timeout=300):
+    # Garante que a pasta existe (cria se não existir)
+    os.makedirs(pasta, exist_ok=True)
+    
     inicio = time.time()
     arquivos_iniciais = set(os.listdir(pasta))
     
