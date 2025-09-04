@@ -18,7 +18,7 @@ def get_engine():
 
 def init_database():
     engine = get_engine()
-    sql_path = os.path.join("sql", "init_tables.sql")
+    sql_path = "/app/etl/sql/init_tables.sql"
     if os.path.exists(sql_path):
         with open(sql_path, "r", encoding="utf-8") as f:
             sql_content = f.read()

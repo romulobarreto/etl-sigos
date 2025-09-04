@@ -5,16 +5,15 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 import os
 from dotenv import load_dotenv
-
 load_dotenv()
+
+SELENIUM_HOST = os.getenv("SELENIUM_HOST", "selenium-hub")  # default p/ Grid
+SELENIUM_PORT = os.getenv("SELENIUM_PORT", "4444")
 
 USUARIO = os.getenv("SIGOS_USUARIO")
 SENHA = os.getenv("SIGOS_SENHA")
 
-# ⚠️ IMPORTANTE:
-# Dentro do container selenium, o user padrão é "seluser"
-# E a pasta Downloads padrão é /home/seluser/Downloads
-DOWNLOAD_DIR = "/home/seluser/Downloads"
+DOWNLOAD_DIR = "/app/downloads"
 
 HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"  # true por padrão
 
@@ -35,16 +34,19 @@ def abre_navegador():
     options = Options()
 
     prefs = {
-        "download.default_directory": DOWNLOAD_DIR,
+        "download.default_directory": "/home/seluser/Downloads",
         "download.prompt_for_download": False,
         "download.directory_upgrade": True,
         "safebrowsing.enabled": True,
         "safebrowsing.disable_download_protection": True,
-        "credentials_enable_service": False,
-        "profile.password_manager_enabled": False
+        "profile.default_content_settings.popups": 0,
     }
     options.add_experimental_option("prefs", prefs)
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
+
+    # Flags extras para evitar o popup "Save As"
+    options.add_argument("--disable-notifications")
+    options.add_argument("--disable-popup-blocking")
 
     if HEADLESS:
         options.add_argument("--headless=new")
@@ -53,9 +55,8 @@ def abre_navegador():
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
 
-    # Conectar no Chrome remoto do container selenium
     driver = webdriver.Remote(
-        command_executor="http://selenium:4444/wd/hub",
+        command_executor=f"http://{SELENIUM_HOST}:{SELENIUM_PORT}/wd/hub",
         options=options
     )
 

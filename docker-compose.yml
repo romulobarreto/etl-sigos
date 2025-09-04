@@ -15,7 +15,7 @@ services:
     image: adminer
     restart: always
     ports:
-      - 8080:8080
+      - "8080:8080"
 
   selenium:
     image: selenium/standalone-chrome:4.19.0
@@ -28,6 +28,7 @@ services:
 
   etl:
     build: .
+    restart: always
     depends_on:
       - db
       - selenium
@@ -40,9 +41,13 @@ services:
       SIGOS_USUARIO: ${SIGOS_USUARIO}
       SIGOS_SENHA: ${SIGOS_SENHA}
       HEADLESS: ${HEADLESS}
+      SELENIUM_HOST: selenium
+      SELENIUM_PORT: 4444
     volumes:
       - selenium_downloads:/app/downloads
       - etl_logs:/app/logs
+    ports:
+      - "8000:8000"   # API visível
 
 volumes:
   pgdata:

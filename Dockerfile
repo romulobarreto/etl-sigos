@@ -1,6 +1,5 @@
 FROM python:3.12-slim
 
-# Instalar deps básicas que podem ser necessárias (NaN, psycopg2-binary, etc)
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpq-dev \
@@ -8,13 +7,16 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
+# instalar deps
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY extraction ./extraction
-COPY load ./load
-COPY transformation ./transformation
-COPY sql ./sql
-COPY main.py .
+# copiar código
+COPY etl ./etl
+COPY api ./api
 
-CMD ["python", "main.py", "--report", "general", "--mode", "incremental"]
+# expor porta da API
+EXPOSE 8000
+
+# comando: roda a API (o ETL será chamado por subprocess)
+CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000"]
