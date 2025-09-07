@@ -40,13 +40,17 @@ def abre_navegador():
         "safebrowsing.enabled": True,
         "safebrowsing.disable_download_protection": True,
         "profile.default_content_settings.popups": 0,
+        "profile.default_content_setting_values.automatic_downloads": 1,
+        "plugins.always_open_pdf_externally": True,
     }
     options.add_experimental_option("prefs", prefs)
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
-    # Flags extras para evitar o popup "Save As"
+    # Flags extras
     options.add_argument("--disable-notifications")
     options.add_argument("--disable-popup-blocking")
+    options.add_argument("--no-first-run")
+    options.add_argument("--no-default-browser-check")
 
     if HEADLESS:
         options.add_argument("--headless=new")
