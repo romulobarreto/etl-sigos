@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS general_reports (
     "Serv de Pedreiro" TEXT,
     "Parcelamento" TEXT,
     "RS Negociado" TEXT,
-    "Hora" TIMESTAMP,
     "Backoffice" TEXT,
     "Data baixado" DATE,
     "Hora inicio servico" TIME,

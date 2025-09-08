@@ -2,15 +2,30 @@ services:
   db:
     image: postgres:15
     restart: always
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: etl_db
     ports:
       - "5432:5432"
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
 
   adminer:
     image: adminer
     restart: always
     ports:
-      - 8080:8080
+      - "8080:8080"
+
+  selenium:
+    platform: linux/amd64
+    image: selenium/standalone-chrome-debug:3.141.59
+    shm_size: 2gb
+    ports:
+      - "4444:4444"   # WebDriver
+      - "5900:5900"   # VNC nativo (abre no Finder: vnc://localhost:5900)
+    environment:
+      - VNC_NO_PASSWORD=1
+
+volumes:
+  pgdata:

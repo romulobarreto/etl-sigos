@@ -259,34 +259,13 @@ def transformar_general(mode: str) -> pd.DataFrame:
     elif "Data execucao" in df.columns:
         df = df.rename(columns={"Data execucao": "data_execucao"})
 
-    cols_para_remover = ['Motivo nao baixado', 'Regional', 'Empresa', 'Sit deixada', 'Fiscal', 'tipo_servico_comercial', 'obs_at', 'RS Entrada', 'Lancado por', 'Data lancado']
+    cols_para_remover = ['Motivo nao baixado', 'Regional', 'Empresa', 'Sit deixada', 'Fiscal', 'tipo_servico_comercial', 'obs_at', 'RS Entrada', 'Lancado por', 'Data lancado', "Hora"]
 
     # Times
     for tcol in ["Hora inicio servico", "Hora fim servico"]:
         if tcol in df.columns:
             df[tcol] = _parse_time_series(df[tcol])
 
-    # Hora (TIMESTAMP) -> escrever na coluna "Hora" do DF (no banco é TIMESTAMP)
-    if "Hora" in df.columns:
-        hora_ts = None
-        if "Data lancado" in df.columns:
-            df = _combine_date_time(df, "Data lancado", "Hora", "Hora_ts")
-            hora_ts = df["Hora_ts"]
-        elif "data_execucao" in df.columns:
-            df = _combine_date_time(df, "data_execucao", "Hora", "Hora_ts")
-            hora_ts = df["Hora_ts"]
-        elif "Data execucao" in df.columns:  # se o rename ainda não rolou, cobre também
-            df = _combine_date_time(df, "Data execucao", "Hora", "Hora_ts")
-            hora_ts = df["Hora_ts"]
-        elif "DATA EXECUCAO" in df.columns:
-            df = _combine_date_time(df, "DATA EXECUCAO", "Hora", "Hora_ts")
-            hora_ts = df["Hora_ts"]
-        else:
-            hora_ts = _parse_timestamp_series(df["Hora"], dayfirst=True)
-
-        df["Hora"] = hora_ts
-        if "Hora_ts" in df.columns:
-            df = df.drop(columns=["Hora_ts"])
 
     df = _drop_cols_safe(df, cols_para_remover)
     df = _add_audit_cols(df)
