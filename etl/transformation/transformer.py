@@ -234,6 +234,11 @@ def transformar_return(mode: str) -> pd.DataFrame:
     dedup_keys = ["UC / MD", "data_execucao", "CODIGO", "TOI", "EQUIPE"]
     df = _deduplicate_df(df, dedup_keys)
 
+    # === NOVO: Colunas REGIONAL e GRUPO ===
+    if "EQUIPE" in df.columns:
+        df["REGIONAL"] = df["EQUIPE"].apply(lambda x: "SUL" if isinstance(x, str) and "PEL" in x else "NORTE")
+        df["GRUPO"] = df["EQUIPE"].apply(lambda x: "AT" if isinstance(x, str) and "A0" in x else "BT")
+
     return df
 
 
@@ -273,5 +278,10 @@ def transformar_general(mode: str) -> pd.DataFrame:
     # Deduplicação
     dedup_keys = ["UC / MD", "data_execucao", "Cod", "TOI", "Equipe"]
     df = _deduplicate_df(df, dedup_keys)
+
+    # === NOVO: Colunas Regional e Grupo ===
+    if "Equipe" in df.columns:
+        df["REGIONAL"] = df["Equipe"].apply(lambda x: "SUL" if isinstance(x, str) and "PEL" in x else "NORTE")
+        df["GRUPO"] = df["Equipe"].apply(lambda x: "AT" if isinstance(x, str) and "A0" in x else "BT")
 
     return df

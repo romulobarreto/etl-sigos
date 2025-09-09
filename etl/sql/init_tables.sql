@@ -27,6 +27,8 @@ CREATE TABLE IF NOT EXISTS general_reports (
     "Hora fim servico" TIME,
     "Cod Financiamento" TEXT,
     "Qtd parcela(s)" TEXT,
+    "REGIONAL" TEXT,
+    "GRUPO" TEXT,
     "data_extracao" TIMESTAMP
 );
 
@@ -43,5 +45,7 @@ CREATE TABLE IF NOT EXISTS return_reports (
     "MOTIVO DETALHADO" TEXT,
     "MOTIVO DETALHADO 2" TEXT,
     "STATUS" TEXT,
+    "REGIONAL" TEXT,
+    "GRUPO" TEXT,
     "data_extracao" TIMESTAMP
 );

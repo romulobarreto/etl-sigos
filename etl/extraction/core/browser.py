@@ -7,6 +7,8 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 USUARIO = os.getenv("SIGOS_USUARIO")
 SENHA = os.getenv("SIGOS_SENHA")
