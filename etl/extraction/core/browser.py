@@ -25,7 +25,13 @@ def esperar_elemento(driver, xpath, tipo="presenca", timeout=20):
     elif tipo == "visivel":
         return wait.until(EC.visibility_of_element_located((By.XPATH, xpath)))
     elif tipo == "clicavel":
-        return wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
+        elem = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
+        # Scroll pra garantir que fica visível no headless
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({block:'center'});", elem)
+        except Exception:
+            pass
+        return elem
     else:
         raise ValueError("Tipo inválido: use 'presenca', 'visivel' ou 'clicavel'")
 
@@ -64,7 +70,8 @@ def abre_navegador():
 
 def logar_sigos():
     driver = abre_navegador()
-    driver.maximize_window()
+    if not HEADLESS:  # só maximiza se não for headless
+        driver.maximize_window()
     campo_login = esperar_elemento(driver, "/html/body/form/div/div/div[2]/div[3]/div/div[1]/input")
     campo_login.send_keys(USUARIO)
     campo_senha = esperar_elemento(driver, "/html/body/form/div/div/div[2]/div[3]/div/div[2]/input")

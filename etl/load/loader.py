@@ -20,7 +20,7 @@ def get_engine():
 
 def init_database():
     engine = get_engine()
-    sql_path = os.path.join("etl", "sql", "init_tables.sql")  # Ajustado para local, não /app/
+    sql_path = os.path.join("etl", "sql", "init_tables.sql")
     if os.path.exists(sql_path):
         with open(sql_path, "r", encoding="utf-8") as f:
             sql_content = f.read()
@@ -33,19 +33,19 @@ def init_database():
 def _dtype_map_for_table(tabela: str):
     if tabela == "return_reports":
         return {
-            "data_execucao": Date(),
+            "DATA_EXECUCUCAO": Date(),
             "DATA RESOLVIDO": Date(),
-            "data_extracao": DateTime()
+            "DATA_EXTRACAO": DateTime()
         }
     if tabela == "general_reports":
         return {
-            "data_execucao": Date(),
-            "Data Afericao": Date(),
-            "Data AR": Date(),
-            "Data baixado": Date(),
-            "Hora inicio servico": Time(),
-            "Hora fim servico": Time(),
-            "data_extracao": DateTime()
+            "DATA_EXECUCAO": Date(),
+            "DATA AFERICAO": Date(),
+            "DATA AR": Date(),
+            "DATA BAIXADO": Date(),
+            "HORA INICIO SERVICO": Time(),
+            "HORA FIM SERVICO": Time(),
+            "DATA_EXTRACAO": DateTime()
         }
     return {}
 

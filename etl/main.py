@@ -33,14 +33,17 @@ def setup_logging():
 
 def cleanup_files(report_type):
     """Remove arquivos baixados e processados após sucesso do ETL"""
+    # Usa o mesmo caminho que o browser.py e transformer.py
+    downloads_dir = os.path.join(os.getcwd(), "etl", "downloads")
+    
     patterns = []
     if report_type == "return":
         patterns = [
-            os.path.join("downloads", "retorno*.csv")
+            os.path.join(downloads_dir, "retorno*.csv")
         ]
     else:  # general
         patterns = [
-            os.path.join("downloads", "relatorio_prot_geral*.csv")
+            os.path.join(downloads_dir, "relatorio_prot_geral*.csv")
         ]
     
     for pattern in patterns:
@@ -69,7 +72,7 @@ def main():
             logging.info("Extração GENERAL concluída")
             df = transformar_general(args.mode)
             logging.info("Transformação GENERAL concluída")
-            load_df_to_postgres(df, tabela="general_reports", mode=args.mode, coluna_data_execucao="data_execucao")
+            load_df_to_postgres(df, tabela="general_reports", mode=args.mode, coluna_data_execucao="DATA_EXECUCAO")
             logging.info("Load GENERAL concluído")
             
         else:  # return
@@ -77,7 +80,7 @@ def main():
             logging.info("Extração RETURN concluída")
             df = transformar_return(args.mode)
             logging.info("Transformação RETURN concluída")
-            load_df_to_postgres(df, tabela="return_reports", mode=args.mode, coluna_data_execucao="data_execucao")
+            load_df_to_postgres(df, tabela="return_reports", mode=args.mode, coluna_data_execucao="DATA_EXECUCAO")
             logging.info("Load RETURN concluído")
 
         if not args.keep_files:

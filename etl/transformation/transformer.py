@@ -9,10 +9,12 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# Bases de caminho
+DOWNLOADS_DIR = os.path.join(os.getcwd(), "etl", "downloads")
+
 # ====
 # Helpers de leitura robusta
 # ====
-
 
 def _sniff_delimiter(path, sample_bytes=8192):
     try:
@@ -100,9 +102,6 @@ def _read_all_csvs(folder, pattern, known_columns=None):
             dfs.append(df)
         except Exception as e:
             logger.exception(f"Falha definitiva ao ler {os.path.basename(p)}: {e}")
-            # Opcional: mover para quarentena
-            # os.makedirs("quarentena", exist_ok=True)
-            # shutil.move(p, os.path.join("quarentena", os.path.basename(p)))
     return dfs
 
 # ====
@@ -110,13 +109,13 @@ def _read_all_csvs(folder, pattern, known_columns=None):
 # ====
 
 def _norm_col(s: str) -> str:
-    # Normaliza nome de colunas: remove acentos, trim, colapsa espaços, lower only onde útil
+    # Normaliza nome de colunas: remove acentos, trim, colapsa espaços
     if not isinstance(s, str):
         return s
     s = s.replace('"', '').strip()
     s = " ".join(s.split())
     s = ''.join(c for c in unicodedata.normalize('NFKD', s) if not unicodedata.combining(c))
-    return s  # mantém case original por ora (para bater com nomes do SIGOS)
+    return s
 
 def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
@@ -129,7 +128,7 @@ def _normalize_date_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
     df = df.copy()
     for col in df.columns:
-        if "DATA" in col.upper():  # pega qualquer coluna com "DATA" no nome
+        if "DATA" in col.upper():
             logger.info(f"Convertendo coluna de data: {col}")
             df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce").dt.date
     return df
@@ -139,25 +138,6 @@ def _parse_time_series(series: pd.Series) -> pd.Series:
     return pd.to_datetime(series, format="%H:%M:%S", errors="coerce").dt.time.fillna(
         pd.to_datetime(series, format="%H:%M", errors="coerce").dt.time
     )
-
-def _parse_timestamp_series(series: pd.Series, dayfirst=True) -> pd.Series:
-    # Converte timestamp completo; aceita ISO ou BR
-    return pd.to_datetime(series, dayfirst=dayfirst, errors="coerce")
-
-def _combine_date_time(df: pd.DataFrame, date_col: str, time_col: str, target_col: str) -> pd.DataFrame:
-    # Se time_col tiver só hora, combina com date_col para gerar um timestamp
-    if date_col in df.columns and time_col in df.columns:
-        # tenta entender se time_col já é timestamp
-        ts = pd.to_datetime(df[time_col], errors="coerce", dayfirst=True)
-        only_time = ts.isna()  # se NaT, provavelmente era só hora
-        if only_time.any():
-            d = pd.to_datetime(df[date_col], dayfirst=True, errors="coerce").dt.date
-            t = _parse_time_series(df[time_col])
-            combined = pd.to_datetime(d.astype(str) + " " + pd.Series(t).astype(str), errors="coerce")
-            # onde time_col já era timestamp, usa ele
-            ts = ts.fillna(combined)
-        df[target_col] = ts
-    return df
 
 def _add_audit_cols(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
@@ -197,6 +177,15 @@ def _deduplicate_df(df: pd.DataFrame, subset_keys: list[str]) -> pd.DataFrame:
     
     return df_dedup
 
+def _add_regional_grupo(df: pd.DataFrame, equipe_col: str) -> pd.DataFrame:
+    """
+    Adiciona colunas REGIONAL e GRUPO baseadas na coluna de equipe
+    """
+    if equipe_col in df.columns:
+        df["REGIONAL"] = df[equipe_col].apply(lambda x: "SUL" if isinstance(x, str) and "PEL" in x else "NORTE")
+        df["GRUPO"] = df[equipe_col].apply(lambda x: "AT" if isinstance(x, str) and "A0" in x else "BT")
+    return df
+
 # ====
 # Transformadores principais
 # ====
@@ -206,13 +195,12 @@ def transformar_return(mode: str) -> pd.DataFrame:
     Lê todos os arquivos de retorno*.csv em downloads/, normaliza e retorna um único DataFrame.
     """
     known_cols = ["REGIONAL", "UC / MD", "TIPO SERVICO", "DATA EXECUCAO", "CODIGO"]
-    dfs = _read_all_csvs("downloads", "retorno*.csv", known_columns=known_cols)
+    dfs = _read_all_csvs(DOWNLOADS_DIR, "retorno*.csv", known_columns=known_cols)
     if not dfs:
         raise FileNotFoundError("Nenhum CSV de retorno encontrado para processar.")
 
     df = pd.concat(dfs, ignore_index=True)
     df = _normalize_columns(df)
-    # Converte automaticamente todas as colunas de DATA
     df = _normalize_date_columns(df)
 
     # Padroniza nome da coluna de data de execução
@@ -221,23 +209,27 @@ def transformar_return(mode: str) -> pd.DataFrame:
     elif "Data execucao" in df.columns:
         df = df.rename(columns={"Data execucao": "data_execucao"})
 
-    # Listas para você ajustar ao seu layout
+    # Remove colunas desnecessárias
     cols_para_remover = ['REGIONAL', 'TIPO SERVICO', 'FISCAL', 'EMPRESA', 'DATA ENTREGA', 'RETORNO DE']
-
-    # Ajustes finais
     df = _drop_cols_safe(df, cols_para_remover)
 
     # Auditoria
     df = _add_audit_cols(df)
 
-    # Deduplicação - usa UC/MD + Data execucao + Cod como chaves principais
+    # Deduplicação
     dedup_keys = ["UC / MD", "data_execucao", "CODIGO", "TOI", "EQUIPE"]
     df = _deduplicate_df(df, dedup_keys)
 
-    # === NOVO: Colunas REGIONAL e GRUPO ===
-    if "EQUIPE" in df.columns:
-        df["REGIONAL"] = df["EQUIPE"].apply(lambda x: "SUL" if isinstance(x, str) and "PEL" in x else "NORTE")
-        df["GRUPO"] = df["EQUIPE"].apply(lambda x: "AT" if isinstance(x, str) and "A0" in x else "BT")
+    # Adiciona colunas REGIONAL e GRUPO
+    df = _add_regional_grupo(df, "EQUIPE")
+
+    # Colunas em maiúsculo
+    df.columns = df.columns.str.upper()
+
+    # Conteúdo textual em maiúsculo, sem quebrar datas/nums
+    for col in df.columns:
+        if pd.api.types.is_object_dtype(df[col]):
+            df[col] = df[col].apply(lambda v: v.upper() if isinstance(v, str) else v)
 
     return df
 
@@ -245,17 +237,14 @@ def transformar_return(mode: str) -> pd.DataFrame:
 def transformar_general(mode: str) -> pd.DataFrame:
     """
     Lê todos os arquivos relatorio_prot_geral*.csv em downloads/, normaliza e retorna um único DataFrame.
-    - Hora -> TIMESTAMP (preferência por combinar com Data lancado ou Data execucao)
-    - Hora inicio servico / Hora fim servico -> TIME
     """
-    known_cols = ["UC / MD", "Status", "Motivo nao baixado"]  # ajuste se necessário ao layout do "general"
-    dfs = _read_all_csvs("downloads", "relatorio_prot_geral*.csv", known_columns=known_cols)
+    known_cols = ["UC / MD", "Status", "Motivo nao baixado"]
+    dfs = _read_all_csvs(DOWNLOADS_DIR, "relatorio_prot_geral*.csv", known_columns=known_cols)
     if not dfs:
         raise FileNotFoundError("Nenhum CSV 'relatorio_prot_geral*.csv' encontrado para processar.")
 
     df = pd.concat(dfs, ignore_index=True)
     df = _normalize_columns(df)
-    # Converte automaticamente todas as colunas de DATA
     df = _normalize_date_columns(df)
 
     # Padroniza nome da coluna de data de execução
@@ -264,24 +253,31 @@ def transformar_general(mode: str) -> pd.DataFrame:
     elif "Data execucao" in df.columns:
         df = df.rename(columns={"Data execucao": "data_execucao"})
 
+    # Remove colunas desnecessárias
     cols_para_remover = ['Motivo nao baixado', 'Regional', 'Empresa', 'Sit deixada', 'Fiscal', 'tipo_servico_comercial', 'obs_at', 'RS Entrada', 'Lancado por', 'Data lancado', "Hora"]
+    df = _drop_cols_safe(df, cols_para_remover)
 
-    # Times
+    # Converte colunas de hora para TIME
     for tcol in ["Hora inicio servico", "Hora fim servico"]:
         if tcol in df.columns:
             df[tcol] = _parse_time_series(df[tcol])
 
-
-    df = _drop_cols_safe(df, cols_para_remover)
+    # Auditoria
     df = _add_audit_cols(df)
 
     # Deduplicação
     dedup_keys = ["UC / MD", "data_execucao", "Cod", "TOI", "Equipe"]
     df = _deduplicate_df(df, dedup_keys)
 
-    # === NOVO: Colunas Regional e Grupo ===
-    if "Equipe" in df.columns:
-        df["REGIONAL"] = df["Equipe"].apply(lambda x: "SUL" if isinstance(x, str) and "PEL" in x else "NORTE")
-        df["GRUPO"] = df["Equipe"].apply(lambda x: "AT" if isinstance(x, str) and "A0" in x else "BT")
+    # Adiciona colunas REGIONAL e GRUPO
+    df = _add_regional_grupo(df, "Equipe")
+
+    # Colunas em maiúsculo
+    df.columns = df.columns.str.upper()
+
+    # Conteúdo textual em maiúsculo, sem quebrar datas/nums
+    for col in df.columns:
+        if pd.api.types.is_object_dtype(df[col]):
+            df[col] = df[col].apply(lambda v: v.upper() if isinstance(v, str) else v)
 
     return df

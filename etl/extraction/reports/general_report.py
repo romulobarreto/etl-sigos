@@ -45,7 +45,9 @@ def exportar_geral(driver, data_inicio, data_final, primeira_vez=False):
         # Preenche as datas
         actions = digitar_data_por_etapas(actions, data_inicio)
         actions.send_keys(Keys.TAB).pause(0.5)
+        actions.send_keys(Keys.TAB).pause(0.5)
         actions = digitar_data_por_etapas(actions, data_final)
+        actions.send_keys(Keys.TAB).pause(0.5)
         actions.send_keys(Keys.TAB).pause(0.5)
         actions.send_keys(Keys.TAB).pause(0.5)
         actions.send_keys(Keys.ENTER).pause(0.5)
@@ -59,7 +61,9 @@ def exportar_geral(driver, data_inicio, data_final, primeira_vez=False):
         # Reescreve as datas e exporta
         actions = digitar_data_por_etapas(actions, data_inicio)
         actions.send_keys(Keys.TAB).pause(0.5)
+        actions.send_keys(Keys.TAB).pause(0.5)
         actions = digitar_data_por_etapas(actions, data_final)
+        actions.send_keys(Keys.TAB).pause(0.5)
         actions.send_keys(Keys.TAB).pause(0.5)
         actions.send_keys(Keys.TAB).pause(0.5)
         actions.send_keys(Keys.ENTER).pause(0.5)
