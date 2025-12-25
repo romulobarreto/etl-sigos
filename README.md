@@ -1,103 +1,162 @@
 # ⚡ ETL SIGOS - Recuperação de Energia (CEEE Equatorial)
 
-Projeto de **ETL (Extract, Transform, Load)** para automação da coleta de relatórios do sistema **SIGOS**, tratamento de dados e carga em um banco **Postgres** containerizado.  
-Pensado para rodar em **Docker** com orquestração via **n8n** 🚀.
+Projeto de **ETL (Extract, Transform, Load)** para automação da coleta de relatórios do sistema **SIGOS**, tratamento dos dados e carga em um banco **Postgres (Supabase)**.
+
+> Hoje o ETL roda **localmente e de forma manual** na máquina do analista.  
 
 ---
 
 ## 📂 Estrutura do Projeto
 
-```
+```bash
 PIPELINE/
 ├── extraction/        # Scripts de extração (web scraping com Selenium)
 │   ├── core/          # Configurações principais (navegador, utils)
-│   └── reports/       # Extratores para relatórios específicos
+│   └── reports/       # Extratores para relatórios específicos (general, return, etc.)
 ├── transformation/    # Tratamento e normalização de DataFrames
-├── load/              # Carregamento no Postgres
-├── sql/               # Scripts SQL de inicialização
-├── downloads/         # Relatórios baixados (volume no Docker)
+├── load/              # Rotinas de carga para o Postgres (Supabase)
+├── sql/               # (Opcional) Scripts SQL de apoio
+├── downloads/         # Relatórios baixados do SIGOS
 ├── logs/              # Logs de execução
-├── main.py            # Entrada principal do ETL
-├── Dockerfile         # Configuração da imagem Docker
-├── docker-compose.yml # Orquestração dos serviços
+├── main.py            # Entrada principal do ETL (CLI)
 ├── requirements.txt   # Dependências Python
 └── .env               # Variáveis de ambiente (NÃO versionar ⚠️)
 ```
+---
+
+## ✅ Pré-requisitos
+
+Para rodar o ETL na máquina local você precisa de:
+
+- 🐍 **Python 3.10+**  
+- 🌐 **Google Chrome** instalado  
+- 🧩 **ChromeDriver / WebDriver Manager** (já tratado via código, já está no `requirements.txt`)  
+- Acesso ao:
+  - Sistema **SIGOS** (usuário e senha)
+  - Banco **Supabase (Postgres)**
 
 ---
 
-## 🚀 Como rodar localmente (com Docker)
+## 🔐 Configuração do `.env`
 
-1. Crie um arquivo `.env` na raiz do projeto com as variáveis:
+Crie um arquivo `.env` na raiz do projeto com algo nesse formato:
 
 ```env
+# Credenciais SIGOS
 SIGOS_USUARIO=seu_usuario
 SIGOS_SENHA=sua_senha
-HEADLESS=true
+HEADLESS=true  # true = sem abrir janela do Chrome / false = abre navegador
 
-DB_HOST=db
+# Conexão com o banco (Supabase / Postgres)
+DB_HOST=seu_host_supabase
 DB_PORT=5432
-DB_USER=etl_user
-DB_PASS=senha123
-DB_NAME=etl_sigos
+DB_NAME=nome_do_banco
+DB_USER=usuario
+DB_PASS=senha_super_secreta
+
+# (Opcional) Outras configs de log / diretórios, se existirem no código
+LOG_LEVEL=INFO
 ```
 
-⚠️ Importante: não suba este arquivo no GitHub.
+⚠️ **Importante:**  
+- Não versionar o `.env` no GitHub.  
+- Se estiver usando uma `DATABASE_URL` única do Supabase, você pode ter algo como:
 
-2. Construa as imagens:
-
-```bash
-docker-compose build
+```env
+DATABASE_URL=postgresql://usuario:senha@host:5432/nome_do_banco
 ```
 
-3. Suba os serviços (Postgres, Adminer, ETL):
-
-```bash
-docker-compose up
-```
-
-4. Acesse o **Adminer** em [http://localhost:8080](http://localhost:8080)  
-   - Sistema: PostgreSQL  
-   - Servidor: `db`  
-   - Usuário: `etl_user`  
-   - Senha: `senha123`  
-   - Banco: `etl_sigos`
+e o código usa essa variável diretamente.
 
 ---
 
-## 🛠️ Executando o ETL manualmente
+## 🧪 Como rodar o projeto localmente
 
-Por padrão o ETL roda com `general incremental`.  
-Para executar outro relatório:
+1. **Criar e ativar o ambiente virtual**
 
 ```bash
-docker-compose run etl python main.py --report return --mode full
+# Dentro da pasta do projeto
+python -m venv .venv
+
+# Windows
+.venv\Scriptsctivate
+
+# Linux / WSL / macOS
+source .venv/bin/activate
 ```
 
+2. **Instalar as dependências**
+
+```bash
+pip install -r requirements.txt
+```
+
+3. **Confirmar que o `.env` está criado** na raiz do projeto, com as variáveis certas.
+
+4. **Rodar o ETL**
+
+O `main.py` expõe uma CLI onde você escolhe:
+
+- o tipo de relatório (`--report`)
+- o modo (`--mode`), por exemplo `full` ou `incremental`.
+
+Exemplos:
+
+```bash
+# Relatório "general" em modo incremental (fluxo usado no dia a dia)
+python main.py --report general --mode incremental
+
+# Relatório "general" em modo full (reprocessa toda a base)
+python main.py --report general --mode full
+
+# Relatório "return" em modo full
+python main.py --report return --mode full
+```
+
+Durante a execução, o fluxo é:
+
+1. **Extract**  
+   - Faz login no SIGOS com Selenium  
+   - Navega até o relatório desejado  
+   - Baixa o arquivo (CSV/XLSX) para a pasta `downloads/`
+
+2. **Transform**  
+   - Lê os arquivos baixados com Pandas  
+   - Normaliza nomes de colunas, tipos, datas (formato pt-BR → ISO)  
+   - Faz tratamentos específicos por relatório (deduplicação, limpeza, etc.)
+
+3. **Load**  
+   - Conecta ao banco Postgres (Supabase) usando as variáveis do `.env`  
+   - Insere/atualiza os dados nas tabelas-alvo  
+   - Em modo `incremental`, só processa o recorte configurado (ex.: últimos dias / mês corrente)
+
+Os logs das execuções ficam na pasta `logs/` (se configurado no código).
+
 ---
 
-## 📊 Tecnologias usadas
+## 🧱 Tecnologias usadas
 
-- 🐍 **Python 3.12**  
-- 📦 **Pandas / SQLAlchemy**  
-- 🖥 **Selenium + Chrome Headless**  
-- 🐘 **Postgres 16**  
-- 📦 **Docker & Docker Compose**  
-- 🧩 **Adminer** (interface DB)  
-- 🔄 **N8N** *(orquestração)*  
+- 🐍 **Python 3.x**
+- 📦 **Pandas / SQLAlchemy**
+- 🖥 **Selenium + Chrome Headless**
+- 🐘 **Postgres (Supabase)**
+- 📁 **.env** para gerenciamento de credenciais
+- 📝 **Logging** para acompanhamento das execuções
 
 ---
 
-## 📌 Próximos passos
+## 🗺️ Roadmap / Futuro
 
-- ✅ Finalizar dockerização do ETL  
-- ⚙️ Configurar workflows no **n8n**  
-- 📲 Integração com **Telegram** (logs, notificações)  
-- 🗃️ Dashboards no **Power BI** / Metabase  
+> Coisas planejadas mas **ainda não implementadas na prática**:
+
+- Containerização com **Docker** (ETL + banco local + Adminer)  
+- Orquestração com **n8n** ou outro scheduler (rodar em horários fixos)  
+- Notificações (ex.: Telegram) com resumo dos resultados  
+- Publicação automática em um banco dedicado para **dashboards (Power BI / Metabase)**
 
 ---
 
 ## ✨ Autor
 
 Desenvolvido por **Rômulo** 🧑‍💻  
-Analista Pleno @ CEEE Equatorial ⚡
+Analista Pleno @ **CEEE Equatorial** ⚡

@@ -124,13 +124,39 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
 
 def _normalize_date_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Converte automaticamente todas as colunas que contenham 'DATA' no nome para datetime.date
+    Converte automaticamente todas as colunas que contenham 'DATA' no nome para datetime.date,
+    fazendo parse manual de dd/mm/yyyy para evitar ambiguidade de dayfirst.
     """
     df = df.copy()
     for col in df.columns:
         if "DATA" in col.upper():
             logger.info(f"Convertendo coluna de data: {col}")
-            df[col] = pd.to_datetime(df[col], dayfirst=True, errors="coerce").dt.date
+
+            # Limpa valores inválidos
+            serie = df[col].astype(str).str.strip()
+            invalidos = {"", "NULL", "null", "None", "0000-00-00", "00/00/0000", "nan"}
+            serie = serie.where(~serie.isin(invalidos), None)
+
+            # Parse manual: dd/mm/yyyy -> yyyy-mm-dd
+            def parse_date_manual(val):
+                if val is None or pd.isna(val):
+                    return None
+                try:
+                    # Tenta split por /
+                    partes = str(val).split("/")
+                    if len(partes) == 3:
+                        dia, mes, ano = partes
+                        # Monta no formato ISO
+                        iso_str = f"{ano}-{mes.zfill(2)}-{dia.zfill(2)}"
+                        # Converte pra date
+                        return pd.to_datetime(iso_str, format="%Y-%m-%d", errors="coerce").date()
+                    else:
+                        # Se não tiver /, tenta deixar o Pandas inferir (fallback)
+                        return pd.to_datetime(val, errors="coerce").date()
+                except Exception:
+                    return None
+
+            df[col] = serie.apply(parse_date_manual)
     return df
 
 def _parse_time_series(series: pd.Series) -> pd.Series:

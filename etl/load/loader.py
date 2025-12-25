@@ -6,6 +6,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.types import Date, DateTime, Time
 from dotenv import load_dotenv
+from urllib.parse import quote_plus
 
 # Carrega .env da raiz do projeto
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
@@ -14,7 +15,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 # Engine global com SSL e pre_ping
 def get_engine():
     user = os.getenv("DB_USER")
-    password = os.getenv("DB_PASS")
+    password = quote_plus(os.getenv("DB_PASS"))
     db = os.getenv("DB_NAME")
     host = os.getenv("DB_HOST")
     port = os.getenv("DB_PORT", "5432")
@@ -22,8 +23,8 @@ def get_engine():
     engine = create_engine(
         url,
         connect_args={"sslmode": "require"},
-        pool_pre_ping=True,     # valida conexão antes de usar
-        pool_recycle=1800,      # recicla a cada 30min
+        pool_pre_ping=True,    
+        pool_recycle=1800,      
         pool_size=5,
         max_overflow=5,
     )
@@ -43,16 +44,15 @@ def init_database():
         print("[WARN] etl/sql/init_tables.sql não encontrado")
 
 def _dtype_map_for_table(tabela: str):
-    # ATENÇÃO: chaves devem ser idênticas aos nomes de colunas após a transformação
     if tabela == "return_reports":
         return {
-            "DATA_EXECUCAO": Date(),    # corrigido o typo: EXECUCAO
+            "DATA_EXECUCAO": Date(),   
             "DATA RESOLVIDO": Date(),
             "DATA_EXTRACAO": DateTime(),
         }
     if tabela == "general_reports":
         return {
-            "DATA_EXECUCAO": Date(),          # renomeada + upper -> underscore
+            "DATA_EXECUCAO": Date(),          
             "DATA AFERICAO": Date(),
             "DATA AR": Date(),
             "DATA BAIXADO": Date(),
@@ -72,7 +72,7 @@ def _sanitize_df(df: pd.DataFrame) -> pd.DataFrame:
             df[col] = df[col].apply(lambda v: v if (v is None or isinstance(v, str)) else str(v))
     return df
 
-def load_df_to_postgres(df: pd.DataFrame, tabela: str, mode: str, coluna_data_execucao: str, chunksize: int = 1000):
+def load_df_to_postgres(df: pd.DataFrame, tabela: str, mode: str, coluna_data_execucao: str, chunksize: int = 3000):
     engine = get_engine()
 
     if coluna_data_execucao not in df.columns:

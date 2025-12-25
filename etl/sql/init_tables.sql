@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS general_reports (
     "QTD PARCELA(S)" TEXT,
     "REGIONAL" TEXT,
     "GRUPO" TEXT,
-    "DATA_EXTRACAO" TIMESTAMP
+    "DATA_EXTRACAO" TIMESTAMP,
+    "NOTIFICADO" TEXT
 );
 
 -- Tabela para relatórios RETURN
