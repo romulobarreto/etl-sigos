@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "etl-sigos-local"
+version = "0.1.0"
+description = "ETL SIGOS - Recuperação de Energia"
+authors = ["Rômulo <romubah@gmail.com>"]
+readme = "README.md"
+packages = [{include = "etl"}]
+
+[tool.poetry.dependencies]
+python = "^3.12,<4.0"
+pandas = "^2.3.3"
+sqlalchemy = "^2.0.45"
+psycopg2 = "^2.9.11"
+python-dotenv = "^1.2.1"
+selenium = "^4.39.0"
+openpyxl = "^3.1.5"
+taskipy = "^1.14.1"
+pytest = "^9.0.2"
+blue = "^0.9.1"
+isort = "^7.0.0"
+pre-commit = "^4.5.1"
+pydocstyle = "^6.3.0"
+mkdocs = "^1.6.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.taskipy.tasks]
+general_inc = "python etl/main.py --report general --mode incremental"
+general_full = "python etl/main.py --report general --mode full"
+return_inc = "python etl/main.py --report return --mode incremental"
+return_full = "python etl/main.py --report return --mode full"
