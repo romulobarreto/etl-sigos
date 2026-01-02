@@ -1247,6 +1247,21 @@ files = [
 pyyaml = "*"
 
 [[package]]
+name = "schedule"
+version = "1.2.2"
+description = "Job scheduling for humans."
+optional = false
+python-versions = ">=3.7"
+groups = ["main"]
+files = [
+    {file = "schedule-1.2.2-py3-none-any.whl", hash = "sha256:5bef4a2a0183abf44046ae0d164cadcac21b1db011bdd8102e4a0c1e91e06a7d"},
+    {file = "schedule-1.2.2.tar.gz", hash = "sha256:15fe9c75fe5fd9b9627f3f19cc0ef1420508f9f9a46f45cd0769ef75ede5f0b7"},
+]
+
+[package.extras]
+timezone = ["pytz"]
+
+[[package]]
 name = "selenium"
 version = "4.39.0"
 description = "Official Python bindings for Selenium WebDriver"
@@ -1656,4 +1671,4 @@ h11 = ">=0.16.0,<1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12,<4.0"
-content-hash = "e561f547e098d4ff205098dd2bbeefcca51a4a80b0e4835a4142e5bba3eae7fc"
+content-hash = "5fca58409e97751bfabb93a1fcf85c82b02c795a98a39b823893963ffa98bb8d"

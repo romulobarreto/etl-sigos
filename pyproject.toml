@@ -21,6 +21,7 @@ isort = "^7.0.0"
 pre-commit = "^4.5.1"
 pydocstyle = "^6.3.0"
 mkdocs = "^1.6.1"
+schedule = "^1.2.2"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -31,3 +32,4 @@ general_inc = "python etl/main.py --report general --mode incremental"
 general_full = "python etl/main.py --report general --mode full"
 return_inc = "python etl/main.py --report return --mode incremental"
 return_full = "python etl/main.py --report return --mode full"
+scheduler = "python etl/main.py --scheduler"
