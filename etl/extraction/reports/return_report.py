@@ -1,5 +1,6 @@
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.support.ui import Select
 from extraction.core.browser import esperar_elemento, logar_sigos
 from extraction.core.utils import esperar_download_concluir
 from datetime import datetime, timedelta, date
@@ -29,48 +30,57 @@ def exportar_retorno(driver, data_inicio, data_final, primeira_vez=False):
         botao_relatorios2.click()
 
         # Seleciona "Retorno"
-        tipo_relatorio = esperar_elemento(driver, '//*[@id="tp_relatorio"]', tipo="clicavel")
-        tipo_relatorio.click()
-        actions.send_keys(Keys.ARROW_DOWN * 3).pause(0.5)
-        actions.send_keys(Keys.ENTER).pause(0.5)
-        actions.perform()
+        tipo_relatorio_elem = esperar_elemento(driver, '//*[@id="tp_relatorio"]', tipo="clicavel")
+        select = Select(tipo_relatorio_elem)
+        select.select_by_value("retornos")
+
 
         # Seleciona o tipo do retorno
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.send_keys(Keys.ARROW_DOWN * 3).pause(0.5)
+        status_retorno_elem = esperar_elemento(driver, '//*[@id="div_stat_retorno"]/div/select', tipo="clicavel")
+        select = Select(status_retorno_elem)
+        select.select_by_value("E")
+        
 
         # Seleciona "Por data do serviço"
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.send_keys(Keys.ARROW_DOWN).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.perform()
+        tipo_periodo_elem = esperar_elemento(driver, '//*[@id="periodo_ret"]', tipo="clicavel")
+        select = Select(tipo_periodo_elem)
+        select.select_by_value("data_execucao")
+
 
         # Preenche as datas
+        # Data inicial
+        data_inicio_elem = esperar_elemento(driver, '//*[@id="data_inicio"]', tipo="clicavel")
+        data_inicio_elem.clear()
+        data_inicio_elem.click()
         actions = digitar_data_por_etapas(actions, data_inicio)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions = digitar_data_por_etapas(actions, data_final)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.send_keys(Keys.ENTER).pause(0.5)
         actions.perform()
-
+        # Data final
+        data_final_elem = esperar_elemento(driver, '//*[@id="data_fim"]', tipo="clicavel")
+        data_final_elem.clear()
+        data_final_elem.click()
+        actions = digitar_data_por_etapas(actions, data_final)
+        actions.perform()
+        # Clica no botão de exportar
+        botao_exportar_elem = esperar_elemento(driver, '//*[@id="btn-salvar-form"]', tipo="clicavel")
+        botao_exportar_elem.click()
+        
+        
     else:
-        # Volta até campo de data de início
-        campo_inicio = esperar_elemento(driver, '//*[@id="data_inicio"]', tipo="clicavel")
-        campo_inicio.click()
-
-        # Reescreve as datas e exporta
+        # Data inicial
+        data_inicio_elem = esperar_elemento(driver, '//*[@id="data_inicio"]', tipo="clicavel")
+        data_inicio_elem.clear()
+        data_inicio_elem.click()
         actions = digitar_data_por_etapas(actions, data_inicio)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions = digitar_data_por_etapas(actions, data_final)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.send_keys(Keys.TAB).pause(0.5)
-        actions.send_keys(Keys.ENTER).pause(0.5)
         actions.perform()
+        # Data final
+        data_final_elem = esperar_elemento(driver, '//*[@id="data_fim"]', tipo="clicavel")
+        data_final_elem.clear()
+        data_final_elem.click()
+        actions = digitar_data_por_etapas(actions, data_final)
+        actions.perform()
+        # Clica no botão de exportar
+        botao_exportar_elem = esperar_elemento(driver, '//*[@id="btn-salvar-form"]', tipo="clicavel")
+        botao_exportar_elem.click()
 
     print(f"Exportando relatório de retorno: {data_inicio} até {data_final}")
 
