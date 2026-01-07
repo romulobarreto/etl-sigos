@@ -85,7 +85,7 @@ def load_df_to_postgres(
     tabela: str,
     mode: str,
     coluna_data_execucao: str,
-    chunksize: int = 3000,
+    chunksize: int = 10000,
 ):
     engine = get_engine()
 
