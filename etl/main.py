@@ -5,6 +5,7 @@ import os
 import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
+
 import schedule
 
 from extraction.reports.general_report import download_general_report
@@ -102,7 +103,6 @@ def run_etl(report: str, mode: str, keep_files: bool = False) -> None:
         logging.info("ETL finalizado com sucesso")
     except Exception as e:
         logging.exception(f"Falha durante o ETL: {e}")
-        # No scheduler, a gente não levanta a exceção pra não matar o loop
         raise
 
 
@@ -112,7 +112,6 @@ def run_incremental_cycle() -> None:
     try:
         run_etl(report="general", mode="incremental", keep_files=False)
     except Exception:
-        # Já foi logado dentro de run_etl
         logging.error("Erro ao executar GENERAL incremental no ciclo agendado")
 
     try:
@@ -123,16 +122,48 @@ def run_incremental_cycle() -> None:
     logging.info("======== Fim do ciclo incremental agendado ========")
 
 
-def start_scheduler() -> None:
-    """Configura e inicia o agendador: todo dia das 08:30 até 17:30, de hora em hora."""
-    setup_logging()
-    logging.info("Iniciando scheduler de ETL (general/return incrementais)")
+def run_full_cycle() -> None:
+    """Roda um ciclo FULL: GENERAL -> RETURN (domingos às 10h)."""
+    logging.info("======== Iniciando ciclo FULL agendado (domingo) ========")
+    try:
+        run_etl(report="general", mode="full", keep_files=False)
+    except Exception:
+        logging.error("Erro ao executar GENERAL full no ciclo agendado")
 
-    # horários: 08:30, 09:30, ..., 17:30
+    try:
+        run_etl(report="return", mode="full", keep_files=False)
+    except Exception:
+        logging.error("Erro ao executar RETURN full no ciclo agendado")
+
+    logging.info("======== Fim do ciclo FULL agendado ========")
+
+
+def start_scheduler() -> None:
+    """
+    Configura e inicia o agendador:
+    - Segunda a sábado: incrementais de hora em hora (08:30 até 17:30)
+    - Domingo às 10:00: full (general + return)
+    """
+    setup_logging()
+    logging.info("Iniciando scheduler de ETL")
+
+    # Ciclo incremental: segunda a sábado, das 08:30 até 17:30
     horarios = [f"{h:02d}:30" for h in range(8, 18)]
     for h in horarios:
-        schedule.every().day.at(h).do(run_incremental_cycle)
-        logging.info(f"Ciclo incremental agendado para {h} diariamente")
+        schedule.every().monday.at(h).do(run_incremental_cycle)
+        schedule.every().tuesday.at(h).do(run_incremental_cycle)
+        schedule.every().wednesday.at(h).do(run_incremental_cycle)
+        schedule.every().thursday.at(h).do(run_incremental_cycle)
+        schedule.every().friday.at(h).do(run_incremental_cycle)
+        schedule.every().saturday.at(h).do(run_incremental_cycle)
+
+    logging.info(
+        f"Ciclo incremental agendado para segunda a sábado nos horários: {', '.join(horarios)}"
+    )
+
+    # Ciclo FULL: domingo às 10:00
+    schedule.every().sunday.at("10:00").do(run_full_cycle)
+    logging.info("Ciclo FULL agendado para domingo às 10:00")
 
     logging.info("Scheduler iniciado. Aguardando horários...")
 
@@ -184,7 +215,6 @@ def main() -> None:
     args = parse_args()
 
     if args.scheduler:
-        # Modo agendador: não usa report/mode individuais
         start_scheduler()
     else:
         setup_logging()
