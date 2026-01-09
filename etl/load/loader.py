@@ -1,30 +1,38 @@
+"""Módulo para carregamento de dados no PostgreSQL."""
+
+import logging
 import os
 import time
-import logging
+from urllib.parse import quote_plus
+
 import pandas as pd
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.types import Date, DateTime, Time
-from dotenv import load_dotenv
-from urllib.parse import quote_plus
 from tqdm import tqdm
 
 # Carrega .env da raiz do projeto
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 
-# Engine global com SSL e pre_ping
 def get_engine():
-    user = os.getenv("DB_USER")
-    password = quote_plus(os.getenv("DB_PASS"))
-    db = os.getenv("DB_NAME")
-    host = os.getenv("DB_HOST")
-    port = os.getenv("DB_PORT", "5432")
-    url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}"
+    """
+    Cria e retorna uma engine SQLAlchemy para conexão com PostgreSQL.
+
+    Returns:
+        Engine configurada com pool de conexões e SSL.
+    """
+    user = os.getenv('DB_USER')
+    password = quote_plus(os.getenv('DB_PASS'))
+    db = os.getenv('DB_NAME')
+    host = os.getenv('DB_HOST')
+    port = os.getenv('DB_PORT', '5432')
+    url = f'postgresql+psycopg2://{user}:{password}@{host}:{port}/{db}'
     engine = create_engine(
         url,
-        connect_args={"sslmode": "require"},
+        connect_args={'sslmode': 'require'},
         pool_pre_ping=True,
         pool_recycle=1800,
         pool_size=5,
@@ -34,40 +42,59 @@ def get_engine():
 
 
 def init_database():
+    """Inicializa as tabelas do banco de dados a partir do script SQL."""
     engine = get_engine()
     # usa caminho absoluto pro init.sql
-    sql_path = os.path.join(BASE_DIR, "etl", "sql", "init_tables.sql")
+    sql_path = os.path.join(BASE_DIR, 'etl', 'sql', 'init_tables.sql')
     if os.path.exists(sql_path):
-        with open(sql_path, "r", encoding="utf-8") as f:
+        with open(sql_path, 'r', encoding='utf-8') as f:
             sql_content = f.read()
         with engine.begin() as conn:
             conn.execute(text(sql_content))
-        print("[INIT] Tabelas inicializadas com sucesso")
+        print('[INIT] Tabelas inicializadas com sucesso')
     else:
-        print("[WARN] etl/sql/init_tables.sql não encontrado")
+        print('[WARN] etl/sql/init_tables.sql não encontrado')
 
 
 def _dtype_map_for_table(tabela: str):
-    if tabela == "return_reports":
+    """
+    Retorna o mapeamento de tipos SQLAlchemy para as colunas da tabela.
+
+    Args:
+        tabela: Nome da tabela.
+
+    Returns:
+        Dicionário com mapeamento de colunas para tipos SQLAlchemy.
+    """
+    if tabela == 'return_reports':
         return {
-            "DATA_EXECUCAO": Date(),
-            "DATA RESOLVIDO": Date(),
-            "DATA_EXTRACAO": DateTime(),
+            'DATA_EXECUCAO': Date(),
+            'DATA RESOLVIDO': Date(),
+            'DATA_EXTRACAO': DateTime(),
         }
-    if tabela == "general_reports":
+    if tabela == 'general_reports':
         return {
-            "DATA_EXECUCAO": Date(),
-            "DATA AFERICAO": Date(),
-            "DATA AR": Date(),
-            "DATA BAIXADO": Date(),
-            "HORA INICIO SERVICO": Time(),
-            "HORA FIM SERVICO": Time(),
-            "DATA_EXTRACAO": DateTime(),
+            'DATA_EXECUCAO': Date(),
+            'DATA AFERICAO': Date(),
+            'DATA AR': Date(),
+            'DATA BAIXADO': Date(),
+            'HORA INICIO SERVICO': Time(),
+            'HORA FIM SERVICO': Time(),
+            'DATA_EXTRACAO': DateTime(),
         }
     return {}
 
 
 def _sanitize_df(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Sanitiza o DataFrame convertendo NaN/NaT para None e garantindo tipos.
+
+    Args:
+        df: DataFrame a ser sanitizado.
+
+    Returns:
+        DataFrame sanitizado.
+    """
     df = df.copy()
     # Converte NaN/NaT para None (Postgres aceita nulos)
     df = df.where(pd.notnull(df), None)
@@ -87,6 +114,21 @@ def load_df_to_postgres(
     coluna_data_execucao: str,
     chunksize: int = 500,
 ):
+    """
+    Carrega um DataFrame no PostgreSQL com suporte a modo full e incremental.
+
+    Args:
+        df: DataFrame a ser carregado.
+        tabela: Nome da tabela de destino.
+        mode: Modo de carga ('full' ou 'incremental').
+        coluna_data_execucao: Nome da coluna de data para filtro incremental.
+        chunksize: Tamanho dos chunks para inserção (padrão: 500).
+
+    Raises:
+        ValueError: Se a coluna de data não existir no DataFrame.
+        OperationalError: Se houver erro de conexão após retries.
+        SQLAlchemyError: Se houver erro SQL durante a carga.
+    """
     engine = get_engine()
 
     if coluna_data_execucao not in df.columns:
@@ -99,24 +141,24 @@ def load_df_to_postgres(
 
     # Limpeza incremental/full em transação separada
     with engine.begin() as conn:
-        if mode == "full":
-            print(f"[LOAD] Truncando tabela {tabela} (modo FULL)...")
+        if mode == 'full':
+            print(f'[LOAD] Truncando tabela {tabela} (modo FULL)...')
             conn.execute(text(f'TRUNCATE TABLE "{tabela}" RESTART IDENTITY;'))
-            print(f"[LOAD] Tabela {tabela} truncada (modo FULL)")
-        elif mode == "incremental":
+            print(f'[LOAD] Tabela {tabela} truncada (modo FULL)')
+        elif mode == 'incremental':
             menor_data = df[coluna_data_execucao].min()
             if pd.notna(menor_data):
                 print(
-                    f"[LOAD] Deletando registros >= {menor_data} da tabela {tabela}..."
+                    f'[LOAD] Deletando registros >= {menor_data} da tabela {tabela}...'
                 )
                 conn.execute(
                     text(
                         f'DELETE FROM "{tabela}" WHERE "{coluna_data_execucao}" >= :menor_data'
                     ),
-                    {"menor_data": menor_data},
+                    {'menor_data': menor_data},
                 )
                 print(
-                    f"[LOAD] Deletados registros >= {menor_data} da tabela {tabela}"
+                    f'[LOAD] Deletados registros >= {menor_data} da tabela {tabela}'
                 )
 
     # Insert com retry em erros operacionais e dump de chunks problemáticos
@@ -130,31 +172,31 @@ def load_df_to_postgres(
             with engine.begin() as conn:
                 if total <= chunksize:
                     # DataFrame pequeno: insere tudo de uma vez com barra de progresso
-                    print(f"[LOAD] Inserindo {total} registros em {tabela}...")
+                    print(f'[LOAD] Inserindo {total} registros em {tabela}...')
                     with tqdm(
                         total=total,
-                        desc=f"Inserindo em {tabela}",
-                        unit="linhas",
+                        desc=f'Inserindo em {tabela}',
+                        unit='linhas',
                     ) as pbar:
                         df.to_sql(
                             tabela,
                             con=conn,
-                            if_exists="append",
+                            if_exists='append',
                             index=False,
                             dtype=dtype_map,
-                            method="multi",
+                            method='multi',
                             chunksize=chunksize,
                         )
                         pbar.update(total)
                 else:
                     # DataFrame grande: insere em chunks com barra de progresso
                     print(
-                        f"[LOAD] Inserindo {total} registros em {tabela} (chunks de {chunksize})..."
+                        f'[LOAD] Inserindo {total} registros em {tabela} (chunks de {chunksize})...'
                     )
                     with tqdm(
                         total=total,
-                        desc=f"Inserindo em {tabela}",
-                        unit="linhas",
+                        desc=f'Inserindo em {tabela}',
+                        unit='linhas',
                     ) as pbar:
                         while start < total:
                             end = min(start + chunksize, total)
@@ -163,34 +205,39 @@ def load_df_to_postgres(
                                 chunk.to_sql(
                                     tabela,
                                     con=conn,
-                                    if_exists="append",
+                                    if_exists='append',
                                     index=False,
                                     dtype=dtype_map,
-                                    method="multi",
+                                    method='multi',
                                 )
                                 pbar.update(len(chunk))
                             except Exception as e:
                                 # salva o chunk problemático pra investigar schema/dados
                                 os.makedirs(
-                                    os.path.join(BASE_DIR, "logs"), exist_ok=True
+                                    os.path.join(BASE_DIR, 'logs'),
+                                    exist_ok=True,
                                 )
                                 bad_path = os.path.join(
                                     BASE_DIR,
-                                    "logs",
-                                    f"bad_chunk_{tabela}_{start}_{end}.csv",
+                                    'logs',
+                                    f'bad_chunk_{tabela}_{start}_{end}.csv',
                                 )
-                                chunk.to_csv(bad_path, index=False, encoding="utf-8")
+                                chunk.to_csv(
+                                    bad_path, index=False, encoding='utf-8'
+                                )
                                 logging.exception(
-                                    f"Falha inserindo chunk {start}:{end} em {tabela}. Salvo em {bad_path}"
+                                    f'Falha inserindo chunk {start}:{end} em {tabela}. Salvo em {bad_path}'
                                 )
                                 raise
                             start = end
-            print(f"[LOAD] {total} registros inseridos em {tabela} (modo={mode.upper()})")
+            print(
+                f'[LOAD] {total} registros inseridos em {tabela} (modo={mode.upper()})'
+            )
             break  # sucesso
         except OperationalError as e:
             attempt += 1
             logging.warning(
-                f"OperationalError no load ({attempt}/{max_retries}). Vou reciclar a engine e tentar de novo: {e}"
+                f'OperationalError no load ({attempt}/{max_retries}). Vou reciclar a engine e tentar de novo: {e}'
             )
             try:
                 engine.dispose()
@@ -201,11 +248,11 @@ def load_df_to_postgres(
                 raise
         except SQLAlchemyError:
             logging.exception(
-                "Erro SQL durante o load. Rollback automático realizado."
+                'Erro SQL durante o load. Rollback automático realizado.'
             )
             raise
         except Exception:
             logging.exception(
-                "Erro inesperado durante o load. Rollback automático realizado."
+                'Erro inesperado durante o load. Rollback automático realizado.'
             )
             raise
