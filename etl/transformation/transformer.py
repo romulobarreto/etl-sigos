@@ -231,28 +231,26 @@ def _normalize_date_columns(df: pd.DataFrame) -> pd.DataFrame:
             }
             serie = serie.where(~serie.isin(invalidos), None)
 
-            # Parse manual: dd/mm/yyyy -> yyyy-mm-dd
             def parse_date_manual(val):
                 if val is None or pd.isna(val):
                     return None
-                try:
-                    # Tenta split por /
-                    partes = str(val).split('/')
-                    if len(partes) == 3:
-                        dia, mes, ano = partes
-                        # Monta no formato ISO
-                        iso_str = f'{ano}-{mes.zfill(2)}-{dia.zfill(2)}'
-                        # Converte pra date
-                        return pd.to_datetime(
-                            iso_str, format='%Y-%m-%d', errors='coerce'
-                        ).date()
-                    else:
-                        # Se não tiver /, tenta deixar o Pandas inferir (fallback)
-                        return pd.to_datetime(val, errors='coerce').date()
-                except Exception:
-                    return None
+
+                s = str(val).strip()
+
+                # Parse manual: dd/mm/yyyy -> yyyy-mm-dd
+                partes = s.split('/')
+                if len(partes) == 3:
+                    dia, mes, ano = partes
+                    iso_str = f'{ano}-{mes.zfill(2)}-{dia.zfill(2)}'
+                    ts = pd.to_datetime(iso_str, format='%Y-%m-%d', errors='coerce')
+                    return None if pd.isna(ts) else ts.date()
+
+                # Fallback: tenta inferir outros formatos
+                ts = pd.to_datetime(s, errors='coerce')
+                return None if pd.isna(ts) else ts.date()
 
             df[col] = serie.apply(parse_date_manual)
+
     return df
 
 
