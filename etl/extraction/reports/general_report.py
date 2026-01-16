@@ -26,8 +26,8 @@ def digitar_data_por_etapas(actions, data_str):
     """
     dia, mes, ano = data_str.split('/')
     # digita devagar com pausa entre cada parte
-    actions.send_keys(dia).pause(0.5)
     actions.send_keys(mes).pause(0.5)
+    actions.send_keys(dia).pause(0.5)
     actions.send_keys(ano).pause(0.5)
     return actions
 

@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
@@ -57,11 +58,12 @@ def esperar_elemento(driver, xpath, tipo='presenca', timeout=20):
         raise ValueError(
             "Tipo inválido: use 'presenca', 'visivel' ou 'clicavel'"
         )
-
-
+    
+    
 def abre_navegador():
     """
     Configura e abre uma instância do Chrome com opções de download.
+    Se SELENIUM_URL estiver definido, usa Remote; caso contrário, usa local.
 
     Returns:
         WebDriver configurado e apontando para a URL do SIGOS.
@@ -78,21 +80,26 @@ def abre_navegador():
     options.add_experimental_option('prefs', prefs)
     options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
-    # Flags extras
     options.add_argument('--disable-notifications')
     options.add_argument('--disable-popup-blocking')
     options.add_argument('--no-first-run')
     options.add_argument('--no-default-browser-check')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
 
     if HEADLESS:
         options.add_argument('--headless=new')
         options.add_argument('--window-size=1920,1080')
         options.add_argument('--disable-gpu')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
 
-    driver = webdriver.Chrome(options=options)
+    chrome_bin = os.getenv('CHROME_BIN', '')
+    if chrome_bin:
+        options.binary_location = chrome_bin
 
+    chromedriver_path = os.getenv('CHROMEDRIVER_PATH', '/usr/bin/chromedriver')
+    service = Service(executable_path=chromedriver_path)
+
+    driver = webdriver.Chrome(service=service, options=options)
     driver.get('https://apps.equatorialenergia.com.br/sigos/')
     return driver
 

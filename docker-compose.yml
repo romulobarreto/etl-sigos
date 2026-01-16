@@ -1,0 +1,17 @@
+services:
+  etl-sigos:
+    build: .
+    container_name: etl_sigos_app
+    environment:
+      - PYTHONPATH=/app
+      - HEADLESS=true
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./etl/downloads:/app/etl/downloads
+      # Descomenta a linha abaixo se quiser editar código sem rebuild
+      - ./etl:/app/etl
+    # Sobrescreve o CMD do Dockerfile (útil pra testar)
+    command: ["python", "etl/main.py", "--report", "general", "--mode", "incremental"]

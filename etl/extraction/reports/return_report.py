@@ -15,7 +15,8 @@ DOWNLOAD_DIR = os.path.join(os.getcwd(), 'etl', 'downloads')
 
 def digitar_data_por_etapas(actions, data_str):
     """
-    Digita uma data em etapas (dia, mês, ano) com pausas.
+    Digita uma data em etapas (mês, dia, ano) para compatibilidade com
+    locale en-US (Docker/Linux).
 
     Args:
         actions: Instância de ActionChains do Selenium.
@@ -25,10 +26,11 @@ def digitar_data_por_etapas(actions, data_str):
         ActionChains atualizado com as ações de digitação.
     """
     dia, mes, ano = data_str.split('/')
-    # digita devagar com pausa entre cada parte
-    actions.send_keys(dia).pause(0.5)
+
     actions.send_keys(mes).pause(0.5)
+    actions.send_keys(dia).pause(0.5)
     actions.send_keys(ano).pause(0.5)
+
     return actions
 
 

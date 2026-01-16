@@ -110,34 +110,34 @@ def run_etl(report: str, mode: str, keep_files: bool = False) -> None:
 
 def run_incremental_cycle() -> None:
     """Roda um ciclo incremental: GENERAL -> RETURN."""
-    logging.info('======== Iniciando ciclo incremental agendado ========')
+    logging.info('======== Iniciando ciclo incremental ========')
     try:
         run_etl(report='general', mode='incremental', keep_files=False)
     except Exception:
-        logging.error('Erro ao executar GENERAL incremental no ciclo agendado')
+        logging.error('Erro ao executar GENERAL incremental no ciclo')
 
     try:
         run_etl(report='return', mode='incremental', keep_files=False)
     except Exception:
-        logging.error('Erro ao executar RETURN incremental no ciclo agendado')
+        logging.error('Erro ao executar RETURN incremental no ciclo')
 
-    logging.info('======== Fim do ciclo incremental agendado ========')
+    logging.info('======== Fim do ciclo incremental ========')
 
 
 def run_full_cycle() -> None:
-    """Roda um ciclo FULL: GENERAL -> RETURN (domingos às 10h)."""
-    logging.info('======== Iniciando ciclo FULL agendado (domingo) ========')
+    """Roda um ciclo FULL: GENERAL -> RETURN."""
+    logging.info('======== Iniciando ciclo FULL ========')
     try:
         run_etl(report='general', mode='full', keep_files=False)
     except Exception:
-        logging.error('Erro ao executar GENERAL full no ciclo agendado')
+        logging.error('Erro ao executar GENERAL full no ciclo')
 
     try:
         run_etl(report='return', mode='full', keep_files=False)
     except Exception:
-        logging.error('Erro ao executar RETURN full no ciclo agendado')
+        logging.error('Erro ao executar RETURN full no ciclo')
 
-    logging.info('======== Fim do ciclo FULL agendado ========')
+    logging.info('======== Fim do ciclo FULL ========')
 
 
 def start_scheduler() -> None:
@@ -204,15 +204,28 @@ def parse_args() -> argparse.Namespace:
         action='store_true',
         help='Inicia o modo agendador (ignora --report/--mode)',
     )
+    parser.add_argument(
+        '--cycle-incremental',
+        action='store_true',
+        help='Executa o ciclo incremental completo (General + Return)',
+    )
+    parser.add_argument(
+        '--cycle-full',
+        action='store_true',
+        help='Executa o ciclo FULL completo (General + Return)',
+    )
 
     args = parser.parse_args()
 
-    # Validação: ou usa scheduler, ou usa report/mode
-    if not args.scheduler:
-        if not args.report or not args.mode:
-            parser.error(
-                'Você deve informar --report e --mode, ou então usar --scheduler.',
-            )
+    # Validação: precisa de pelo menos um modo de execução
+    if not any([args.scheduler, args.cycle_incremental, args.cycle_full, args.report]):
+        parser.error(
+            'Você deve informar --report e --mode, --scheduler, --cycle-incremental ou --cycle-full.'
+        )
+
+    # Se usar report, precisa de mode
+    if args.report and not args.mode:
+        parser.error('Ao usar --report, você deve informar --mode também.')
 
     return args
 
@@ -223,6 +236,12 @@ def main() -> None:
 
     if args.scheduler:
         start_scheduler()
+    elif args.cycle_incremental:
+        setup_logging()
+        run_incremental_cycle()
+    elif args.cycle_full:
+        setup_logging()
+        run_full_cycle()
     else:
         setup_logging()
         run_etl(
