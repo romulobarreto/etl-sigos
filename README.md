@@ -1,162 +1,141 @@
-# ⚡ ETL SIGOS - Recuperação de Energia (CEEE Equatorial)
+# ⚡ ETL SIGOS — Base paralela (PostgreSQL/Supabase) com atualização automática
 
-Projeto de **ETL (Extract, Transform, Load)** para automação da coleta de relatórios do sistema **SIGOS**, tratamento dos dados e carga em um banco **Postgres (Supabase)**.
+> **Contexto rápido:** o SIGOS é um sistema crítico do dia a dia, mas o banco original fica em um servidor interno da Equatorial ao qual eu não tenho acesso direto. A empresa migrou para o **Snowflake**, porém o **SIGOS ficou fora desse ecossistema** — e isso travava (muito) o trabalho de análise.
 
-> Hoje o ETL roda **localmente e de forma manual** na máquina do analista.  
+## 😵 A dor (real)
 
----
+Antes deste projeto, para acompanhar indicadores diários/semanais/mensais era necessário:
 
-## 📂 Estrutura do Projeto
+- entrar no SIGOS
+- baixar CSV manualmente (vários relatórios)
+- limpar/ajustar na mão
+- juntar bases e publicar dashboard
 
-```bash
-PIPELINE/
-├── extraction/        # Scripts de extração (web scraping com Selenium)
-│   ├── core/          # Configurações principais (navegador, utils)
-│   └── reports/       # Extratores para relatórios específicos (general, return, etc.)
-├── transformation/    # Tratamento e normalização de DataFrames
-├── load/              # Rotinas de carga para o Postgres (Supabase)
-├── sql/               # (Opcional) Scripts SQL de apoio
-├── downloads/         # Relatórios baixados do SIGOS
-├── logs/              # Logs de execução
-├── main.py            # Entrada principal do ETL (CLI)
-├── requirements.txt   # Dependências Python
-└── .env               # Variáveis de ambiente (NÃO versionar ⚠️)
+Resultado: **tempo perdido**, retrabalho e risco de erro.
+
+## ✅ O que este projeto resolve
+
+A ideia foi **clonar o banco “na prática”**, criando uma **base paralela** sempre atualizada:
+
+- 🔁 **Incremental (hora em hora):** baixa dados recentes de 2 - 6 meses para manter o banco sempre atualizado.
+- 🧹 **Full (semanal):** aos domingos reprocessa tudo, baixa todas as tabelas novamente, porque durante a semana pode acontecer **auditoria/ajuste de registros antigos** — e isso não seria capturado por um incremental “curto”.
+
+Com isso, eu consigo criar e automatizar controles e relatórios **sem depender de baixar CSV na mão**.
+
+## 📊 Quais dados entram no banco?
+
+Hoje o ETL mantém duas grandes bases:
+
+- **`general_reports`**: Qualquer serviço protocolado (qualquer status) entra aqui. É a base para visão geral do processo de recuperação de energia.
+- **`return_reports`**: Serviços que voltam para campo por inconsistência/erro/incompletude — base essencial para acompanhar retrabalho e qualidade.
+
+## 🧠 Arquitetura (visão técnica)
+
+- 🕷️ **Extract:** Selenium + Chromium (headless) para autenticar e baixar relatórios.
+- 🧽 **Transform:** limpeza, normalização e padronização (ex.: limpeza de registros duplicados,  definição de serviços que são da regional norte / sul e definição de serviços que são de alta / baixa tensão).
+- 🐘 **Load:** carga em **PostgreSQL (Supabase)**.
+- ☁️ **Run:** container Docker executando em **AWS ECS Fargate**.
+- ⏰ **Schedule:** **EventBridge Scheduler** (incremental e full) para automação.
+
+> O pipeline roda em Fargate (serverless): **sem servidor para administrar** e pagando basicamente por execução.
+
+## 🗂️ Estrutura do repositório
+
+```text
+etl-sigos/
+  data/
+  etl/
+    downloads/
+    extraction/
+      core/
+      reports/
+    load/
+      loader.py
+    sql/
+      init_tables.sql
+    transformation/
+      transformer.py
+    main.py
+  logs/
+  tests/
+    test_data_quality.py
+    test_loader.py
+    test_transformer.py
+  docs/
+  mkdocs.yml 
+  Dockerfile
+  docker-compose.yml
+  pyproject.toml
+  poetry.lock
+  README.md
 ```
----
 
-## ✅ Pré-requisitos
+## 🔐 Variáveis de ambiente
 
-Para rodar o ETL na máquina local você precisa de:
+Este projeto usa variáveis de ambiente para credenciais do SIGOS e conexão com o banco.
 
-- 🐍 **Python 3.10+**  
-- 🌐 **Google Chrome** instalado  
-- 🧩 **ChromeDriver / WebDriver Manager** (já tratado via código, já está no `requirements.txt`)  
-- Acesso ao:
-  - Sistema **SIGOS** (usuário e senha)
-  - Banco **Supabase (Postgres)**
-
----
-
-## 🔐 Configuração do `.env`
-
-Crie um arquivo `.env` na raiz do projeto com algo nesse formato:
+Exemplo (não versionar):
 
 ```env
-# Credenciais SIGOS
-SIGOS_USUARIO=seu_usuario
-SIGOS_SENHA=sua_senha
-HEADLESS=true  # true = sem abrir janela do Chrome / false = abre navegador
+# SIGOS
+SIGOS_USUARIO=...
+SIGOS_SENHA=...
+HEADLESS=true
 
-# Conexão com o banco (Supabase / Postgres)
-DB_HOST=seu_host_supabase
-DB_PORT=5432
-DB_NAME=nome_do_banco
-DB_USER=usuario
-DB_PASS=senha_super_secreta
-
-# (Opcional) Outras configs de log / diretórios, se existirem no código
-LOG_LEVEL=INFO
+# Banco (Supabase Postgres)
+DB_HOST=...
+DB_NAME=...
+DB_USER=...
+DB_PASS=...
+DB_PORT=6543
 ```
 
-⚠️ **Importante:**  
-- Não versionar o `.env` no GitHub.  
-- Se estiver usando uma `DATABASE_URL` única do Supabase, você pode ter algo como:
+## ▶️ “Como rodar” — faz sentido se ninguém tem acesso ao SIGOS?
 
-```env
-DATABASE_URL=postgresql://usuario:senha@host:5432/nome_do_banco
-```
+Sim — e boa pergunta.
 
-e o código usa essa variável diretamente.
+Mesmo que um entusiasta do projeto não consiga executar (sem credenciais), essa seção serve para mostrar que:
 
----
+- o projeto é **reprodutível**
+- existe um “caminho padrão” para rodar/testar
 
-## 🧪 Como rodar o projeto localmente
+Ou seja: não é tutorial para “usuário final”, é **documentação técnica**.
 
-1. **Criar e ativar o ambiente virtual**
+### Rodar localmente (dev/debug)
 
 ```bash
-# Dentro da pasta do projeto
-python -m venv .venv
-
-# Windows
-.venv\Scriptsctivate
-
-# Linux / WSL / macOS
-source .venv/bin/activate
+poetry install
+poetry run python etl/main.py --cycle-incremental
 ```
 
-2. **Instalar as dependências**
+> Dica: local é ótimo para debugar scraping/transformações. Em produção, a execução oficial acontece na AWS.
+
+## ☁️ Execução na AWS (produção)
+
+- Imagem Docker publicada no **ECR**
+- Task definida no **ECS (Fargate)**
+- Agendamento via **EventBridge Scheduler**:
+  - `etl-sigos-incremental` (execução recorrente)
+  - `etl-sigos-full` (execução semanal)
+
+## 🧪 Testes
+
+A pasta `tests/` contém testes de qualidade de dados e componentes principais.
 
 ```bash
-pip install -r requirements.txt
+poetry run pytest
 ```
 
-3. **Confirmar que o `.env` está criado** na raiz do projeto, com as variáveis certas.
+## 🧱 Próximos passos (de engenharia)
 
-4. **Rodar o ETL**
+Este projeto está “pronto” para o objetivo atual.
 
-O `main.py` expõe uma CLI onde você escolhe:
+Evolução planejada (como **outro projeto/etapa**):
 
-- o tipo de relatório (`--report`)
-- o modo (`--mode`), por exemplo `full` ou `incremental`.
+- modelagem em camadas **Bronze / Prata / Ouro** (ex.: Databricks)
+- mover o destino do Supabase para um ambiente de analytics
 
-Exemplos:
+## ✍️ Autor
 
-```bash
-# Relatório "general" em modo incremental (fluxo usado no dia a dia)
-python main.py --report general --mode incremental
+**Rômulo Barreto da Silva** — Analista Pleno @ CEEE Equatorial ⚡
 
-# Relatório "general" em modo full (reprocessa toda a base)
-python main.py --report general --mode full
-
-# Relatório "return" em modo full
-python main.py --report return --mode full
-```
-
-Durante a execução, o fluxo é:
-
-1. **Extract**  
-   - Faz login no SIGOS com Selenium  
-   - Navega até o relatório desejado  
-   - Baixa o arquivo (CSV/XLSX) para a pasta `downloads/`
-
-2. **Transform**  
-   - Lê os arquivos baixados com Pandas  
-   - Normaliza nomes de colunas, tipos, datas (formato pt-BR → ISO)  
-   - Faz tratamentos específicos por relatório (deduplicação, limpeza, etc.)
-
-3. **Load**  
-   - Conecta ao banco Postgres (Supabase) usando as variáveis do `.env`  
-   - Insere/atualiza os dados nas tabelas-alvo  
-   - Em modo `incremental`, só processa o recorte configurado (ex.: últimos dias / mês corrente)
-
-Os logs das execuções ficam na pasta `logs/` (se configurado no código).
-
----
-
-## 🧱 Tecnologias usadas
-
-- 🐍 **Python 3.x**
-- 📦 **Pandas / SQLAlchemy**
-- 🖥 **Selenium + Chrome Headless**
-- 🐘 **Postgres (Supabase)**
-- 📁 **.env** para gerenciamento de credenciais
-- 📝 **Logging** para acompanhamento das execuções
-
----
-
-## 🗺️ Roadmap / Futuro
-
-> Coisas planejadas mas **ainda não implementadas na prática**:
-
-- Containerização com **Docker** (ETL + banco local + Adminer)  
-- Orquestração com **n8n** ou outro scheduler (rodar em horários fixos)  
-- Notificações (ex.: Telegram) com resumo dos resultados  
-- Publicação automática em um banco dedicado para **dashboards (Power BI / Metabase)**
-
----
-
-## ✨ Autor
-
-Desenvolvido por **Rômulo** 🧑‍💻  
-Analista Pleno @ **CEEE Equatorial** ⚡
