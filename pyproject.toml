@@ -24,6 +24,7 @@ mkdocs = "^1.6.1"
 schedule = "^1.2.2"
 tqdm = "^4.67.1"
 pip-audit = "^2.10.0"
+mkdocs-material = "^9.7.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -39,3 +40,4 @@ cycle_full = "python run python etl/main.py --cycle-full"
 scheduler = "python etl/main.py --scheduler"
 format = "isort . && blue ."
 test = "pytest -v"
+kill = "kill -9 $(lsof -t -i :8000)"
