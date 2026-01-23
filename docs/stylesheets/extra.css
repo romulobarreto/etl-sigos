@@ -43,3 +43,17 @@ a, .md-typeset a {
 .md-typeset .admonition, .md-typeset details {
   border-radius: 10px;
 }
+
+/* Deixa o ícone e o texto do GitHub brancos no cabeçalho */
+.md-source__icon svg {
+  fill: #ffffff !important;
+}
+
+.md-source__repository {
+  color: #ffffff !important;
+}
+
+/* Ajusta a cor do texto "romulobarreto/etl-sigos" */
+.md-source__fact {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
