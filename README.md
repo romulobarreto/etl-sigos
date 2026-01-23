@@ -144,5 +144,4 @@ Evolução planejada (como **outro projeto/etapa**):
 
 **Rômulo Barreto da Silva** — Analista Pleno @ CEEE Equatorial ⚡
 
-!!! note
-    Para acessar a documentação clique aqui: [Documentação](https://romulobarreto.github.io/etl-sigos/)
+    Para acessar a documentação do projeto, clique aqui: [Documentação](https://romulobarreto.github.io/etl-sigos/)
