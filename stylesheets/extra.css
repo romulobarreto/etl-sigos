@@ -1,0 +1,59 @@
+/* Equatorial-inspired palette (teal + orange) */
+:root {
+  --eq-teal: #21b6b6;
+  --eq-orange: #f28c28;
+  --eq-ink: #0b1220;
+}
+
+.md-header {
+  background: linear-gradient(90deg, var(--eq-teal), var(--eq-orange));
+}
+
+.md-tabs {
+  background: rgba(11, 18, 32, 0.92);
+}
+
+.md-tabs__link--active {
+  border-bottom: 3px solid var(--eq-orange);
+}
+
+a, .md-typeset a {
+  color: var(--eq-teal);
+}
+
+.md-typeset a:hover {
+  color: var(--eq-orange);
+}
+
+.md-typeset h1, .md-typeset h2, .md-typeset h3 {
+  letter-spacing: -0.02em;
+}
+
+.md-typeset .admonition.tip {
+  border-left-color: var(--eq-teal);
+}
+.md-typeset .admonition.warning {
+  border-left-color: var(--eq-orange);
+}
+
+.md-typeset pre > code {
+  border: 1px solid rgba(33,182,182,0.25);
+}
+
+.md-typeset .admonition, .md-typeset details {
+  border-radius: 10px;
+}
+
+/* Deixa o ícone e o texto do GitHub brancos no cabeçalho */
+.md-source__icon svg {
+  fill: #ffffff !important;
+}
+
+.md-source__repository {
+  color: #ffffff !important;
+}
+
+/* Ajusta a cor do texto "romulobarreto/etl-sigos" */
+.md-source__fact {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
