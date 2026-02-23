@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "etl-sigos-local"
+name = "etl-sigos"
 version = "0.1.0"
 description = "ETL SIGOS - Recuperação de Energia"
 authors = ["Rômulo <romubah@gmail.com>"]

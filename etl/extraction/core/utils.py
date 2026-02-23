@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta
 
 
-def esperar_download_concluir(pasta, timeout=300):
+def esperar_download_concluir(pasta, timeout=120):
     """
     Aguarda a conclusão de downloads na pasta especificada.
 
@@ -14,7 +14,7 @@ def esperar_download_concluir(pasta, timeout=300):
 
     Args:
         pasta: Caminho da pasta onde os downloads são salvos.
-        timeout: Tempo máximo de espera em segundos (padrão: 300).
+        timeout: Tempo máximo de espera em segundos (padrão: 120).
 
     Raises:
         TimeoutError: Se o download não for concluído dentro do timeout.
