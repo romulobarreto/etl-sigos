@@ -15,7 +15,7 @@ from load.loader import init_database, load_df_to_postgres
 from transformation.transformer import transformar_general, transformar_return
 
 
-def setup_logging():
+def setup_logging() -> None:
     """Configura o sistema de logging com rotação de arquivos e console."""
     os.makedirs('logs', exist_ok=True)
     log_filename = f"logs/etl_{datetime.now().strftime('%Y-%m-%d')}.log"
@@ -108,6 +108,60 @@ def run_etl(report: str, mode: str, keep_files: bool = False) -> None:
         raise
 
 
+def run_etl_manual(report: str, mode: str, keep_files: bool = False) -> None:
+    """Executa o ETL pulando o download (extração manual).
+
+    Use quando o SIGOS estiver fora do ar: coloque o arquivo CSV
+    manualmente na pasta etl/downloads/ e rode com --manual.
+
+    Padrões de nome esperados:
+        - general: relatorio_prot_geral*.csv
+        - return:  retorno*.csv
+    """
+    logging.info(
+        f'Iniciando ETL MANUAL (sem download) report={report} mode={mode}'
+    )
+
+    try:
+        init_database()
+
+        if report == 'general':
+            logging.info(
+                'Download pulado — usando arquivo já existente em downloads/'
+            )
+            df = transformar_general(mode)
+            logging.info('Transformação GENERAL concluída')
+            load_df_to_postgres(
+                df,
+                tabela='general_reports',
+                mode=mode,
+                coluna_data_execucao='DATA_EXECUCAO',
+            )
+            logging.info('Load GENERAL concluído')
+        else:  # return
+            logging.info(
+                'Download pulado — usando arquivo já existente em downloads/'
+            )
+            df = transformar_return(mode)
+            logging.info('Transformação RETURN concluída')
+            load_df_to_postgres(
+                df,
+                tabela='return_reports',
+                mode=mode,
+                coluna_data_execucao='DATA_EXECUCAO',
+            )
+            logging.info('Load RETURN concluído')
+
+        if not keep_files:
+            cleanup_files(report)
+            logging.info('Limpeza de arquivos concluída')
+
+        logging.info('ETL MANUAL finalizado com sucesso')
+    except Exception as e:
+        logging.exception(f'Falha durante o ETL MANUAL: {e}')
+        raise
+
+
 def run_incremental_cycle() -> None:
     """Roda um ciclo incremental: GENERAL -> RETURN."""
     logging.info('======== Iniciando ciclo incremental ========')
@@ -141,8 +195,7 @@ def run_full_cycle() -> None:
 
 
 def start_scheduler() -> None:
-    """
-    Configura e inicia o agendador de tarefas.
+    """Configura e inicia o agendador de tarefas.
 
     - Segunda a sábado: incrementais de hora em hora (08:30 até 17:30)
     - Domingo às 10:00: full (general + return)
@@ -161,7 +214,8 @@ def start_scheduler() -> None:
         schedule.every().saturday.at(h).do(run_incremental_cycle)
 
     logging.info(
-        f"Ciclo incremental agendado para segunda a sábado nos horários: {', '.join(horarios)}"
+        'Ciclo incremental agendado para segunda a sábado nos horários: '
+        f"{', '.join(horarios)}"
     )
 
     # Ciclo FULL: domingo às 10:00
@@ -175,9 +229,7 @@ def start_scheduler() -> None:
             schedule.run_pending()
             time.sleep(10)
     except KeyboardInterrupt:
-        logging.info(
-            'Scheduler interrompido manualmente (Ctrl+C). Encerrando.'
-        )
+        logging.info('Scheduler interrompido manualmente (Ctrl+C). Encerrando.')
 
 
 def parse_args() -> argparse.Namespace:
@@ -214,18 +266,37 @@ def parse_args() -> argparse.Namespace:
         action='store_true',
         help='Executa o ciclo FULL completo (General + Return)',
     )
+    parser.add_argument(
+        '--manual',
+        action='store_true',
+        help=(
+            'Pula o download e usa arquivo já existente em etl/downloads/. '
+            'Use quando o SIGOS estiver fora do ar. '
+            'Requer --report e --mode.'
+        ),
+    )
 
     args = parser.parse_args()
 
     # Validação: precisa de pelo menos um modo de execução
-    if not any([args.scheduler, args.cycle_incremental, args.cycle_full, args.report]):
+    if not any([
+        args.scheduler,
+        args.cycle_incremental,
+        args.cycle_full,
+        args.report,
+    ]):
         parser.error(
-            'Você deve informar --report e --mode, --scheduler, --cycle-incremental ou --cycle-full.'
+            'Você deve informar --report e --mode, --scheduler, '
+            '--cycle-incremental ou --cycle-full.'
         )
 
-    # Se usar report, precisa de mode
+    # Se usar --report ou --manual, precisa de --mode
     if args.report and not args.mode:
         parser.error('Ao usar --report, você deve informar --mode também.')
+
+    # --manual exige --report e --mode
+    if args.manual and not (args.report and args.mode):
+        parser.error('--manual requer --report e --mode.')
 
     return args
 
@@ -242,6 +313,13 @@ def main() -> None:
     elif args.cycle_full:
         setup_logging()
         run_full_cycle()
+    elif args.manual:
+        setup_logging()
+        run_etl_manual(
+            report=args.report,
+            mode=args.mode,
+            keep_files=bool(args.keep_files),
+        )
     else:
         setup_logging()
         run_etl(

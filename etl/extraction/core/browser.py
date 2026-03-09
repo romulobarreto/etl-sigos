@@ -21,6 +21,7 @@ SENHA = os.getenv('SIGOS_SENHA')
 DOWNLOAD_DIR = os.path.join(os.getcwd(), 'etl', 'downloads')
 
 HEADLESS = os.getenv('HEADLESS', 'true').lower() == 'true'
+IGNORE_SSL_ERRORS = os.getenv('IGNORE_SSL_ERRORS', 'false').lower() == 'true'
 
 
 def esperar_elemento(driver, xpath, tipo='presenca', timeout=20):
@@ -87,6 +88,11 @@ def abre_navegador():
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
 
+    if IGNORE_SSL_ERRORS:
+        options.add_argument('--ignore-certificate-errors')
+        options.add_argument('--allow-insecure-localhost')
+        options.add_argument('--allow-running-insecure-content')
+
     if HEADLESS:
         options.add_argument('--headless=new')
         options.add_argument('--window-size=1920,1080')
@@ -96,10 +102,14 @@ def abre_navegador():
     if chrome_bin:
         options.binary_location = chrome_bin
 
-    chromedriver_path = os.getenv('CHROMEDRIVER_PATH', '/usr/bin/chromedriver')
-    service = Service(executable_path=chromedriver_path)
-
-    driver = webdriver.Chrome(service=service, options=options)
+    chromedriver_path = os.getenv('CHROMEDRIVER_PATH', '')
+    if chromedriver_path:
+        # Docker/Linux: usa o caminho fixo definido no .env ou Dockerfile
+        service = Service(executable_path=chromedriver_path)
+        driver = webdriver.Chrome(service=service, options=options)
+    else:
+        # Local (Mac/Windows): Selenium Manager resolve o driver automaticamente
+        driver = webdriver.Chrome(options=options)
     driver.get('https://apps.equatorialenergia.com.br/sigos/')
     return driver
 
